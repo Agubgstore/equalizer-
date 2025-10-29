@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>GEBER LIGHTING — FIXED (Rainbow & Chase) + Wallwasher/Parled/Import BG + Resize/Rotate</title>
+    <style>
+    :root{
+      --bg:#000;
+      --panel:#07121a;
+      --accent:#00d4ff;
+      --muted:#9fb0c4;
+      --btn:#0b3740;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:#eaf6ff;font-family:Inter,system-ui,Arial,sans-serif}
+    #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+    #stageWrap{flex:1;position:relative;background:#000;overflow:hidden;height:100vh;}
+    canvas#stage{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;touch-action:none}
+    /* Panel */
+    .panel{flex:0 0 auto;background:var(--panel);padding:10px;overflow-y:auto;max-height:44%;display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .col{flex:1;display:flex;flex-direction:column}
+    .label{font-size:12px;color:var(--muted);margin-bottom:4px}
+    .small{font-size:12px;color:var(--muted);text-align:center}
+    input[type=range]{width:100%}
+    input[type=color]{appearance:none;border:none;padding:0;margin:0;width:44px;height:36px;border-radius:6px;cursor:pointer}
+    button,select{padding:10px;border-radius:10px;border:none;background:var(--btn);color:#eaf6ff;font-weight:700;cursor:pointer}
+    .bigBtn{background:linear-gradient(90deg,var(--accent),#006b7a);color:#001922;font-weight:900}
+    .presetRow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+    .presetBox{background:#092023;padding:6px;border-radius:10px;display:flex;flex-direction:column;align-items:center;min-width:64px}
+    .presetFader{height:120px;writing-mode:bt-lr;-webkit-appearance:slider-vertical}
+    .fileRow{display:flex;gap:8px;align-items:center}
+    .footer{text-align:center;font-size:11px;color:#7da;margin-top:6px}
+    .smallBtn{padding:6px;border-radius:8px;background:#0e2b2f;font-weight:700}
+    .controlGroup{display:flex;gap:6px;align-items:center}
+    /* Grid for Strobe and Prisma Buttons */
+    .strobe-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .strobe-btn, .prisma-btn {
+      padding: 6px 4px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 11px;
+      background: #0b3740;
+    }
+    .strobe-btn.active, .prisma-btn.active {
+      background: var(--accent);
+      color: var(--panel);
+      font-weight: 700;
+    }
+    @media(min-width:920px){
+      #app{flex-direction:row}
+      #stageWrap{flex:1}
+      .panel{width:420px;height:100vh;max-height:none;overflow:auto}
+    }
+    </style>
+</head>
+<body>
+<!-- === AUDIO MIXER SECTION (UPLOAD + LED + 3D + REVERB) === -->
+<div style="margin-top:8px">
+  <div class="label">Audio Mixer (3D & Reverb)</div>
+  <div class="fileRow">
+    <input id="audioFile" type="file" accept="audio/*">
+    <button id="playAudio" class="smallBtn">Play</button>
+    <button id="pauseAudio" class="smallBtn">Pause</button>
+  </div>
+
+  <div class="row" style="justify-content:space-around;align-items:flex-end;height:180px;">
+    <!-- Volume -->
+    <div class="col" style="align-items:center;">
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <input id="volFader" type="range" min="0" max="1" step="0.01" value="1"
+          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+        <div class="ledMeter"><div id="ledVol" class="ledFill"></div></div>
+      </div>
+      <div class="small">VOL</div>
+    </div>
+
+    <!-- Bass -->
+    <div class="col" style="align-items:center;">
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <input id="bassFader" type="range" min="-30" max="30" step="1" value="0"
+          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+        <div class="ledMeter"><div id="ledBass" class="ledFill"></div></div>
+      </div>
+      <div class="small">BASS</div>
+    </div>
+
+    <!-- Low -->
+    <div class="col" style="align-items:center;">
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <input id="lowFader" type="range" min="-30" max="30" step="1" value="0"
+          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+        <div class="ledMeter"><div id="ledLow" class="ledFill"></div></div>
+      </div>
+      <div class="small">LOW</div>
+    </div>
+
+    <!-- Mid -->
+    <div class="col" style="align-items:center;">
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <input id="midFader" type="range" min="-30" max="30" step="1" value="0"
+          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+        <div class="ledMeter"><div id="ledMid" class="ledFill"></div></div>
+      </div>
+      <div class="small">MID</div>
+    </div>
+
+    <!-- Treble -->
+    <div class="col" style="align-items:center;">
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <input id="trebleFader" type="range" min="-30" max="30" step="1" value="0"
+          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+        <div class="ledMeter"><div id="ledTreble" class="ledFill"></div></div>
+      </div>
+      <div class="small">TREBLE</div>
+    </div>
+
+    <!-- Pan (3D L/R) -->
+    <div class="col" style="align-items:center;">
+      <input id="panFader" type="range" min="-1" max="1" step="0.01" value="0"
+        style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+      <div class="small">PAN</div>
+    </div>
+
+    <!-- Reverb -->
+    <div class="col" style="align-items:center;">
+      <input id="reverbFader" type="range" min="0" max="1" step="0.01" value="0.3"
+        style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
+      <div class="small">REV</div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ledMeter {
+  width: 8px;
+  height: 110px;
+  background: #111;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 3px #000;
+}
+.ledFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(to top, #f00 0%, #ff0 40%, #0f0 100%);
+  transition: height 0.05s ease-out;
+}
+</style>
+
+<script>
+let audioCtx, audioSource, audio, analyser, dataArray;
+let gainNode, bassEQ, lowEQ, midEQ, trebleEQ, panner, convolver, dryGain, wetGain;
+
+const audioFile = document.getElementById("audioFile");
+const playBtn = document.getElementById("playAudio");
+const pauseBtn = document.getElementById("pauseAudio");
+
+const volFader = document.getElementById("volFader");
+const bassFader = document.getElementById("bassFader");
+const lowFader = document.getElementById("lowFader");
+const midFader = document.getElementById("midFader");
+const trebleFader = document.getElementById("trebleFader");
+const panFader = document.getElementById("panFader");
+const reverbFader = document.getElementById("reverbFader");
+
+const leds = {
+  vol: document.getElementById("ledVol"),
+  bass: document.getElementById("ledBass"),
+  low: document.getElementById("ledLow"),
+  mid: document.getElementById("ledMid"),
+  treble: document.getElementById("ledTreble")
+};
+
+let isLoaded = false;
+
+// === Reverb Impulse Generator ===
+function createImpulse(ctx, duration = 2, decay = 2) {
+  const rate = ctx.sampleRate;
+  const length = rate * duration;
+  const impulse = ctx.createBuffer(2, length, rate);
+  for (let c = 0; c < 2; c++) {
+    const ch = impulse.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+  }
+  return impulse;
+}
+
+// === Upload file & setup chain ===
+audioFile.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (audio) audio.pause();
+
+  const url = URL.createObjectURL(file);
+  audio = new Audio(url);
+  audio.crossOrigin = "anonymous";
+  audio.loop = true;
+  audio.volume = 1;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioSource = audioCtx.createMediaElementSource(audio);
+
+  // Nodes
+  gainNode = audioCtx.createGain();
+  bassEQ = audioCtx.createBiquadFilter();
+  lowEQ = audioCtx.createBiquadFilter();
+  midEQ = audioCtx.createBiquadFilter();
+  trebleEQ = audioCtx.createBiquadFilter();
+  panner = audioCtx.createStereoPanner();
+  convolver = audioCtx.createConvolver();
+  convolver.buffer = createImpulse(audioCtx, 3, 2);
+  dryGain = audioCtx.createGain();
+  wetGain = audioCtx.createGain();
+  analyser = audioCtx.createAnalyser();
+
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.25;
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  bassEQ.type = "lowshelf"; bassEQ.frequency.value = 100;
+  lowEQ.type = "peaking"; lowEQ.frequency.value = 300;
+  midEQ.type = "peaking"; midEQ.frequency.value = 1000;
+  trebleEQ.type = "highshelf"; trebleEQ.frequency.value = 4000;
+
+  // Chain
+  audioSource
+    .connect(bassEQ)
+    .connect(lowEQ)
+    .connect(midEQ)
+    .connect(trebleEQ)
+    .connect(gainNode)
+    .connect(panner);
+
+  panner.connect(dryGain);
+  panner.connect(convolver);
+  convolver.connect(wetGain);
+
+  dryGain.connect(analyser);
+  wetGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  isLoaded = true;
+});
+
+// === Controls ===
+playBtn.addEventListener("click", async () => {
+  if (!isLoaded) return alert("Upload dulu lagunya 🎵");
+  await audioCtx.resume();
+  audio.play();
+});
+pauseBtn.addEventListener("click", () => audio && audio.pause());
+
+// EQ & FX Faders
+volFader.addEventListener("input", () => gainNode && (gainNode.gain.value = +volFader.value));
+bassFader.addEventListener("input", () => bassEQ && (bassEQ.gain.value = +bassFader.value));
+lowFader.addEventListener("input", () => lowEQ && (lowEQ.gain.value = +lowFader.value));
+midFader.addEventListener("input", () => midEQ && (midEQ.gain.value = +midFader.value));
+trebleFader.addEventListener("input", () => trebleEQ && (trebleEQ.gain.value = +trebleFader.value));
+panFader.addEventListener("input", () => panner && (panner.pan.value = +panFader.value));
+reverbFader.addEventListener("input", () => {
+  if (wetGain && dryGain) {
+    wetGain.gain.value = +reverbFader.value;
+    dryGain.gain.value = 1 - +reverbFader.value;
+  }
+});
+
+// === LED Visualizer ===
+const smooth = { vol: 0, bass: 0, low: 0, mid: 0, treble: 0 };
+
+function renderLEDs() {
+  if (!analyser) return requestAnimationFrame(renderLEDs);
+  analyser.getByteFrequencyData(dataArray);
+
+  const bass = avg(dataArray.slice(0, 15));
+  const low = avg(dataArray.slice(15, 40));
+  const mid = avg(dataArray.slice(40, 80));
+  const treble = avg(dataArray.slice(80, 160));
+  const vol = avg(dataArray);
+
+  const bands = { vol, bass, low, mid, treble };
+
+  for (let key in bands) {
+    const val = map(bands[key], 0, 255, 0, 100);
+    smooth[key] += (val - smooth[key]) * (val > smooth[key] ? 0.5 : 0.08);
+    leds[key].style.height = `${smooth[key]}%`;
+  }
+
+  requestAnimationFrame(renderLEDs);
+}
+
+function avg(arr) {
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+function map(v, a, b, c, d) {
+  return ((v - a) / (b - a)) * (d - c) + c;
+}
+
+renderLEDs();
+</script>
+</body>
+</html>
