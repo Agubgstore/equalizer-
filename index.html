@@ -1,314 +1,500 @@
 <!doctype html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>GEBER LIGHTING — FIXED (Rainbow & Chase) + Wallwasher/Parled/Import BG + Resize/Rotate</title>
-    <style>
-    :root{
-      --bg:#000;
-      --panel:#07121a;
-      --accent:#00d4ff;
-      --muted:#9fb0c4;
-      --btn:#0b3740;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:var(--bg);color:#eaf6ff;font-family:Inter,system-ui,Arial,sans-serif}
-    #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
-    #stageWrap{flex:1;position:relative;background:#000;overflow:hidden;height:100vh;}
-    canvas#stage{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;touch-action:none}
-    /* Panel */
-    .panel{flex:0 0 auto;background:var(--panel);padding:10px;overflow-y:auto;max-height:44%;display:flex;flex-direction:column;gap:10px}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .col{flex:1;display:flex;flex-direction:column}
-    .label{font-size:12px;color:var(--muted);margin-bottom:4px}
-    .small{font-size:12px;color:var(--muted);text-align:center}
-    input[type=range]{width:100%}
-    input[type=color]{appearance:none;border:none;padding:0;margin:0;width:44px;height:36px;border-radius:6px;cursor:pointer}
-    button,select{padding:10px;border-radius:10px;border:none;background:var(--btn);color:#eaf6ff;font-weight:700;cursor:pointer}
-    .bigBtn{background:linear-gradient(90deg,var(--accent),#006b7a);color:#001922;font-weight:900}
-    .presetRow{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
-    .presetBox{background:#092023;padding:6px;border-radius:10px;display:flex;flex-direction:column;align-items:center;min-width:64px}
-    .presetFader{height:120px;writing-mode:bt-lr;-webkit-appearance:slider-vertical}
-    .fileRow{display:flex;gap:8px;align-items:center}
-    .footer{text-align:center;font-size:11px;color:#7da;margin-top:6px}
-    .smallBtn{padding:6px;border-radius:8px;background:#0e2b2f;font-weight:700}
-    .controlGroup{display:flex;gap:6px;align-items:center}
-    /* Grid for Strobe and Prisma Buttons */
-    .strobe-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-    .strobe-btn, .prisma-btn {
-      padding: 6px 4px;
-      border-radius: 6px;
-      font-weight: 500;
-      font-size: 11px;
-      background: #0b3740;
-    }
-    .strobe-btn.active, .prisma-btn.active {
-      background: var(--accent);
-      color: var(--panel);
-      font-weight: 700;
-    }
-    @media(min-width:920px){
-      #app{flex-direction:row}
-      #stageWrap{flex:1}
-      .panel{width:420px;height:100vh;max-height:none;overflow:auto}
-    }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EQ DLMS Rack — Block LED</title>
+<style>
+  :root{
+    --bg:#041017; --panel:#071824; --muted:#9fb0c4; --accent:#0bb; --rack:#0b2230;
+    --knob:#1aa; --led-off:#132022; --led-green:#4dff88; --led-yellow:#ffd24d; --led-red:#ff4d4d;
+    --font:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:var(--font);color:#e8f6ff}
+  .wrap{max-width:1060px;margin:10px auto;padding:12px}
+  .rack{background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+  .title{font-weight:600;margin-bottom:8px;color:var(--muted)}
+  .topRow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .controls{display:flex;gap:12px;align-items:flex-start}
+  .faders{display:flex;gap:12px;align-items:flex-end}
+  .fcol{display:flex;flex-direction:column;align-items:center}
+  input[type=range]{-webkit-appearance:none;background:transparent}
+  input[type=range].vert{height:120px;width:24px;writing-mode:bt-lr;-webkit-appearance:slider-vertical}
+  .small{font-size:12px;color:var(--muted);margin-top:6px}
+  .btn{padding:8px 10px;border-radius:8px;background:#0a2b2e;color:#fff;border:1px solid #073;cursor:pointer}
+  .led-row{display:flex;gap:8px;margin-top:10px}
+  .led-col{display:flex;flex-direction:column;gap:6px}
+  /* horizontal 4-band rack */
+  .fourband{display:flex;gap:12px;align-items:flex-start;margin-top:16px;flex-wrap:wrap}
+  .band{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+    border:1px solid rgba(255,255,255,0.03);
+    padding:10px;border-radius:8px;min-width:210px;flex:1;
+  }
+  .band h4{margin:0 0 6px 0;font-size:13px;color:#cfeef8}
+  .band .row{display:flex;align-items:center;gap:8px}
+  .band .labelSmall{font-size:12px;color:var(--muted);width:70px}
+  .band input[type=range]{height:8px;background:#14262d;border-radius:6px}
+  .band .controlsRow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  /* block LED */
+  .blockMeter{display:flex;flex-direction:column-reverse;gap:4px;height:96px;align-items:center;padding:6px;background:var(--rack);border-radius:6px}
+  .block{width:18px;height:6px;background:var(--led-off);border-radius:3px;box-shadow:inset 0 -1px 2px rgba(0,0,0,.6)}
+  .block.on.green{background:var(--led-green)}
+  .block.on.yellow{background:var(--led-yellow)}
+  .block.on.red{background:var(--led-red)}
+  .band-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+  /* responsive */
+  @media (max-width:720px){
+    .controls{flex-direction:column;gap:10px}
+    .faders{gap:8px}
+    .band{min-width:100%}
+    .blockMeter{height:72px}
+  }
+</style>
 </head>
 <body>
-<!-- === AUDIO MIXER SECTION (UPLOAD + LED + 3D + REVERB) === -->
-<div style="margin-top:8px">
-  <div class="label">Audio Mixer (3D & Reverb)</div>
-  <div class="fileRow">
-    <input id="audioFile" type="file" accept="audio/*">
-    <button id="playAudio" class="smallBtn">Play</button>
-    <button id="pauseAudio" class="smallBtn">Pause</button>
+  <div class="wrap">
+    <div class="rack">
+      <div class="title">EQ DLMS Rack — Block LED (4-Band)</div>
+
+      <!-- upload + play -->
+      <div class="topRow">
+        <div style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="audioFile" type="file" accept="audio/*">
+            <button id="play" class="btn">Play</button>
+            <button id="pause" class="btn">Pause</button>
+            <div style="margin-left:8px;color:var(--muted);font-size:13px" id="fileName">No file</div>
+          </div>
+
+          <!-- main faders row -->
+          <div style="margin-top:10px" class="controls">
+            <div class="faders">
+              <div class="fcol"><input id="volFader" class="vert" type="range" min="0" max="1" step="0.01" value="1"><div class="small">VOL</div></div>
+              <div class="fcol"><input id="bassFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">BASS</div></div>
+              <div class="fcol"><input id="lowFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">LOW</div></div>
+              <div class="fcol"><input id="midFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">MID</div></div>
+              <div class="fcol"><input id="trebleFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">TREBLE</div></div>
+            <div style="margin-left:20px;display:flex;flex-direction:column;gap:10px;align-items:center"></div>
+              <div class="fcol"><input id="panFader" class="vert" type="range" min="-1" max="1" step="0.01" value="0"><div class="small">PAN</div></div>
+              <div class="fcol"><input id="revFader" class="vert" type="range" min="0" max="1" step="0.01" value="0.3"><div class="small">REV</div></div>
+            </div>
+           </div>
+
+            <!-- global LED columns -->
+            <div style="margin-left:18px;display:flex;gap:6px;align-items:flex-start">
+              <div class="led-col">
+                <div class="blockMeter" id="globalVol">
+                  <!-- 12 blocks -->
+                  <!-- blocks generated via JS -->
+                </div>
+                <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">GLOBAL</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-band rack horizontal -->
+      <div class="fourband" id="fourband">
+        <!-- Band cards inserted inline for clarity -->
+        <div class="band" id="band0">
+          <h4>Band 1 <span style="color:#7fe7d4">SUB</span></h4>
+          <div class="row">
+            <div class="labelSmall">Freq (Hz)</div>
+            <input class="freq" data-band="0" type="range" min="20" max="200" value="60">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="labelSmall">Gain (dB)</div>
+            <input class="gain" data-band="0" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div class="controlsRow">
+            <div class="blockMeter" id="meter0"></div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">60 Hz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band1">
+          <h4>Band 2 <span style="color:#7fe7d4">LOW</span></h4>
+          <div class="row">
+            <div class="labelSmall">Freq (Hz)</div>
+            <input class="freq" data-band="1" type="range" min="100" max="600" value="250">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="labelSmall">Gain (dB)</div>
+            <input class="gain" data-band="1" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div class="controlsRow">
+            <div class="blockMeter" id="meter1"></div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">250 Hz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band2">
+          <h4>Band 3 <span style="color:#7fe7d4">MID</span></h4>
+          <div class="row">
+            <div class="labelSmall">Freq (Hz)</div>
+            <input class="freq" data-band="2" type="range" min="400" max="3000" value="1000">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="labelSmall">Gain (dB)</div>
+            <input class="gain" data-band="2" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div class="controlsRow">
+            <div class="blockMeter" id="meter2"></div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">1 kHz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band3">
+          <h4>Band 4 <span style="color:#7fe7d4">HIGH</span></h4>
+          <div class="row">
+            <div class="labelSmall">Freq (Hz)</div>
+            <input class="freq" data-band="3" type="range" min="2000" max="12000" value="8000">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="labelSmall">Gain (dB)</div>
+            <input class="gain" data-band="3" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div class="controlsRow">
+            <div class="blockMeter" id="meter3"></div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">8 kHz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <div class="row" style="justify-content:space-around;align-items:flex-end;height:180px;">
-    <!-- Volume -->
-    <div class="col" style="align-items:center;">
-      <div style="display:flex;align-items:flex-end;gap:4px;">
-        <input id="volFader" type="range" min="0" max="1" step="0.01" value="1"
-          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-        <div class="ledMeter"><div id="ledVol" class="ledFill"></div></div>
-      </div>
-      <div class="small">VOL</div>
-    </div>
-
-    <!-- Bass -->
-    <div class="col" style="align-items:center;">
-      <div style="display:flex;align-items:flex-end;gap:4px;">
-        <input id="bassFader" type="range" min="-30" max="30" step="1" value="0"
-          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-        <div class="ledMeter"><div id="ledBass" class="ledFill"></div></div>
-      </div>
-      <div class="small">BASS</div>
-    </div>
-
-    <!-- Low -->
-    <div class="col" style="align-items:center;">
-      <div style="display:flex;align-items:flex-end;gap:4px;">
-        <input id="lowFader" type="range" min="-30" max="30" step="1" value="0"
-          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-        <div class="ledMeter"><div id="ledLow" class="ledFill"></div></div>
-      </div>
-      <div class="small">LOW</div>
-    </div>
-
-    <!-- Mid -->
-    <div class="col" style="align-items:center;">
-      <div style="display:flex;align-items:flex-end;gap:4px;">
-        <input id="midFader" type="range" min="-30" max="30" step="1" value="0"
-          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-        <div class="ledMeter"><div id="ledMid" class="ledFill"></div></div>
-      </div>
-      <div class="small">MID</div>
-    </div>
-
-    <!-- Treble -->
-    <div class="col" style="align-items:center;">
-      <div style="display:flex;align-items:flex-end;gap:4px;">
-        <input id="trebleFader" type="range" min="-30" max="30" step="1" value="0"
-          style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-        <div class="ledMeter"><div id="ledTreble" class="ledFill"></div></div>
-      </div>
-      <div class="small">TREBLE</div>
-    </div>
-
-    <!-- Pan (3D L/R) -->
-    <div class="col" style="align-items:center;">
-      <input id="panFader" type="range" min="-1" max="1" step="0.01" value="0"
-        style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-      <div class="small">PAN</div>
-    </div>
-
-    <!-- Reverb -->
-    <div class="col" style="align-items:center;">
-      <input id="reverbFader" type="range" min="0" max="1" step="0.01" value="0.3"
-        style="height:110px;width:22px;writing-mode:bt-lr;-webkit-appearance:slider-vertical;">
-      <div class="small">REV</div>
-    </div>
-  </div>
-</div>
-
-<style>
-.ledMeter {
-  width: 8px;
-  height: 110px;
-  background: #111;
-  border-radius: 4px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 0 3px #000;
-}
-.ledFill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 0%;
-  background: linear-gradient(to top, #f00 0%, #ff0 40%, #0f0 100%);
-  transition: height 0.05s ease-out;
-}
-</style>
 
 <script>
-let audioCtx, audioSource, audio, analyser, dataArray;
-let gainNode, bassEQ, lowEQ, midEQ, trebleEQ, panner, convolver, dryGain, wetGain;
+/* DLMS Rack-style EQ with block LEDs (12 blocks per band)
+   Works with uploaded audio file. All nodes built on upload action.
+*/
 
-const audioFile = document.getElementById("audioFile");
-const playBtn = document.getElementById("playAudio");
-const pauseBtn = document.getElementById("pauseAudio");
+const fileIn = document.getElementById('audioFile');
+const playBtn = document.getElementById('play');
+const pauseBtn = document.getElementById('pause');
+const fileNameEl = document.getElementById('fileName');
 
-const volFader = document.getElementById("volFader");
-const bassFader = document.getElementById("bassFader");
-const lowFader = document.getElementById("lowFader");
-const midFader = document.getElementById("midFader");
-const trebleFader = document.getElementById("trebleFader");
-const panFader = document.getElementById("panFader");
-const reverbFader = document.getElementById("reverbFader");
+let audio, audioCtx, audioSource;
+let preGain, bassEQ, lowEQ, midEQ, trebleEQ;
+let masterMix, bandFilters = [], bandAnalyzers = [], bandGains = [];
+let panner, convolver, dryGain, wetGain, finalGain, analyser, dataArray;
+let isReady = false;
 
-const leds = {
-  vol: document.getElementById("ledVol"),
-  bass: document.getElementById("ledBass"),
-  low: document.getElementById("ledLow"),
-  mid: document.getElementById("ledMid"),
-  treble: document.getElementById("ledTreble")
-};
+// UI refs
+const volFader = document.getElementById('volFader');
+const bassFader = document.getElementById('bassFader');
+const lowFader = document.getElementById('lowFader');
+const midFader = document.getElementById('midFader');
+const trebleFader = document.getElementById('trebleFader');
+const panFader = document.getElementById('panFader');
+const revFader = document.getElementById('revFader') || document.getElementById('revFader'); // alt id
+const globalVolMeter = document.getElementById('globalVol');
 
-let isLoaded = false;
+// build meter blocks (12) for global and each band
+function mkBlocks(container, n=12){
+  container.innerHTML = '';
+  for(let i=0;i<n;i++){
+    const b = document.createElement('div');
+    b.className = 'block';
+    container.appendChild(b);
+  }
+}
+mkBlocks(globalVolMeter,12);
+for(let i=0;i<4;i++){ mkBlocks(document.getElementById('meter'+i),12); }
 
-// === Reverb Impulse Generator ===
-function createImpulse(ctx, duration = 2, decay = 2) {
-  const rate = ctx.sampleRate;
-  const length = rate * duration;
-  const impulse = ctx.createBuffer(2, length, rate);
-  for (let c = 0; c < 2; c++) {
-    const ch = impulse.getChannelData(c);
-    for (let i = 0; i < length; i++) {
-      ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+// helper: create impulse response for reverb
+function createImpulse(ctx, duration=2, decay=2){
+  const sr = ctx.sampleRate;
+  const len = Math.floor(sr * duration);
+  const buf = ctx.createBuffer(2, len, sr);
+  for(let c=0;c<2;c++){
+    const ch = buf.getChannelData(c);
+    for(let i=0;i<len;i++){
+      ch[i] = (Math.random()*2 - 1) * Math.pow(1 - i/len, decay);
     }
   }
-  return impulse;
+  return buf;
 }
 
-// === Upload file & setup chain ===
-audioFile.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+// create 4 band filter nodes (peaking) and analysers
+function ensure4BandNodes(){
+  if(!audioCtx || masterMix) return;
+  masterMix = audioCtx.createGain(); masterMix.gain.value = 1;
+  const defaults = [60,250,1000,8000];
+  for(let i=0;i<4;i++){
+    const f = audioCtx.createBiquadFilter();
+    f.type = 'peaking';
+    f.frequency.value = defaults[i];
+    f.Q.value = 1.0;
+    f.gain.value = 0;
+    const g = audioCtx.createGain(); g.gain.value = 1;
+    const a = audioCtx.createAnalyser(); a.fftSize = 256; a.smoothingTimeConstant = 0.18;
+    f.connect(g); g.connect(a); a.connect(masterMix);
+    bandFilters.push(f); bandGains.push(g); bandAnalyzers.push(a);
+  }
+}
 
-  if (audio) audio.pause();
+// connect source (preOut) to each band filter
+function connectSourceToBands(preOut){
+  if(!preOut || bandFilters.length===0) return;
+  for(let i=0;i<bandFilters.length;i++){
+    try{ preOut.connect(bandFilters[i]); } catch(e){}
+  }
+}
 
-  const url = URL.createObjectURL(file);
-  audio = new Audio(url);
-  audio.crossOrigin = "anonymous";
-  audio.loop = true;
-  audio.volume = 1;
-
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioSource = audioCtx.createMediaElementSource(audio);
-
-  // Nodes
-  gainNode = audioCtx.createGain();
-  bassEQ = audioCtx.createBiquadFilter();
-  lowEQ = audioCtx.createBiquadFilter();
-  midEQ = audioCtx.createBiquadFilter();
-  trebleEQ = audioCtx.createBiquadFilter();
-  panner = audioCtx.createStereoPanner();
-  convolver = audioCtx.createConvolver();
-  convolver.buffer = createImpulse(audioCtx, 3, 2);
-  dryGain = audioCtx.createGain();
-  wetGain = audioCtx.createGain();
-  analyser = audioCtx.createAnalyser();
-
-  analyser.fftSize = 512;
-  analyser.smoothingTimeConstant = 0.25;
+// connect masterMix to fx chain and destination
+function connectMasterToFX(){
+  if(!masterMix) return;
+  if(!panner) panner = audioCtx.createStereoPanner();
+  if(!convolver){ convolver = audioCtx.createConvolver(); convolver.buffer = createImpulse(audioCtx,2.2,2.0); }
+  if(!dryGain) dryGain = audioCtx.createGain();
+  if(!wetGain) wetGain = audioCtx.createGain();
+  if(!finalGain) finalGain = audioCtx.createGain();
+  if(!analyser) analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.25;
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-  bassEQ.type = "lowshelf"; bassEQ.frequency.value = 100;
-  lowEQ.type = "peaking"; lowEQ.frequency.value = 300;
-  midEQ.type = "peaking"; midEQ.frequency.value = 1000;
-  trebleEQ.type = "highshelf"; trebleEQ.frequency.value = 4000;
-
-  // Chain
-  audioSource
-    .connect(bassEQ)
-    .connect(lowEQ)
-    .connect(midEQ)
-    .connect(trebleEQ)
-    .connect(gainNode)
-    .connect(panner);
-
+  masterMix.connect(panner);
   panner.connect(dryGain);
   panner.connect(convolver);
   convolver.connect(wetGain);
 
   dryGain.connect(analyser);
   wetGain.connect(analyser);
-  analyser.connect(audioCtx.destination);
 
-  isLoaded = true;
+  analyser.connect(finalGain);
+  finalGain.connect(audioCtx.destination);
+
+  // default wet/dry
+  wetGain.gain.value = (document.getElementById('revFader')?.value || 0.3);
+  dryGain.gain.value = 1 - wetGain.gain.value;
+  finalGain.gain.value = +volFader.value;
+}
+
+// when user uploads file, init audio nodes and wire chain properly
+fileIn.addEventListener('change', (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  fileNameEl.textContent = file.name;
+  if(audio){ try{ audio.pause(); }catch(e){} }
+
+  audio = new Audio(URL.createObjectURL(file));
+  audio.crossOrigin = 'anonymous'; audio.loop = true; audio.volume = 1;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  audioSource = audioCtx.createMediaElementSource(audio);
+
+  // create pre-EQ and preOut
+  preGain = audioCtx.createGain();
+  bassEQ = audioCtx.createBiquadFilter(); bassEQ.type='lowshelf'; bassEQ.frequency.value = 100; bassEQ.gain.value = 0;
+  lowEQ  = audioCtx.createBiquadFilter(); lowEQ.type='peaking'; lowEQ.frequency.value = 300; lowEQ.Q.value=1.0; lowEQ.gain=0;
+  midEQ  = audioCtx.createBiquadFilter(); midEQ.type='peaking'; midEQ.frequency.value = 1000; midEQ.Q.value=1.0; midEQ.gain=0;
+  trebleEQ = audioCtx.createBiquadFilter(); trebleEQ.type='highshelf'; trebleEQ.frequency.value = 4000; trebleEQ.gain=0;
+
+  preOut = audioCtx.createGain();
+
+  // create 4-band nodes
+  ensure4BandNodes();
+
+  // connect pre chain
+  audioSource.connect(bassEQ);
+  bassEQ.connect(lowEQ);
+  lowEQ.connect(midEQ);
+  midEQ.connect(trebleEQ);
+  trebleEQ.connect(preOut);
+
+  // connect preOut into 4-band filters
+  connectSourceToBands(preOut);
+
+  // ensure masterMix -> fx -> dest
+  connectMasterToFX();
+
+  isReady = true;
 });
 
-// === Controls ===
-playBtn.addEventListener("click", async () => {
-  if (!isLoaded) return alert("Upload dulu lagunya 🎵");
+// play/pause with resume
+playBtn.addEventListener('click', async ()=>{
+  if(!isReady) return alert('Upload lagu dulu');
   await audioCtx.resume();
   audio.play();
 });
-pauseBtn.addEventListener("click", () => audio && audio.pause());
+pauseBtn.addEventListener('click', ()=>{ if(audio) audio.pause(); });
 
-// EQ & FX Faders
-volFader.addEventListener("input", () => gainNode && (gainNode.gain.value = +volFader.value));
-bassFader.addEventListener("input", () => bassEQ && (bassEQ.gain.value = +bassFader.value));
-lowFader.addEventListener("input", () => lowEQ && (lowEQ.gain.value = +lowFader.value));
-midFader.addEventListener("input", () => midEQ && (midEQ.gain.value = +midFader.value));
-trebleFader.addEventListener("input", () => trebleEQ && (trebleEQ.gain.value = +trebleFader.value));
-panFader.addEventListener("input", () => panner && (panner.pan.value = +panFader.value));
-reverbFader.addEventListener("input", () => {
-  if (wetGain && dryGain) {
-    wetGain.gain.value = +reverbFader.value;
-    dryGain.gain.value = 1 - +reverbFader.value;
+// main fader bindings
+volFader.addEventListener('input', ()=>{ if(finalGain) finalGain.gain.value = +volFader.value; });
+bassFader.addEventListener('input', ()=>{ if(bassEQ) bassEQ.gain.value = +bassFader.value; });
+lowFader.addEventListener('input', ()=>{ if(lowEQ) lowEQ.gain.value = +lowFader.value; });
+midFader.addEventListener('input', ()=>{ if(midEQ) midEQ.gain.value = +midFader.value; });
+trebleFader.addEventListener('input', ()=>{ if(trebleEQ) trebleEQ.gain.value = +trebleFader.value; });
+panFader.addEventListener('input', ()=>{ if(panner) panner.pan.value = +panFader.value; });
+document.getElementById('revFader').addEventListener('input', ()=>{
+  if(wetGain && dryGain){
+    wetGain.gain.value = +document.getElementById('revFader').value;
+    dryGain.gain.value = 1 - wetGain.gain.value;
   }
 });
 
-// === LED Visualizer ===
-const smooth = { vol: 0, bass: 0, low: 0, mid: 0, treble: 0 };
+// 4-band UI wiring
+const freqInputs = document.querySelectorAll('.freq');
+const gainInputs = document.querySelectorAll('.gain');
+freqInputs.forEach(inp => inp.addEventListener('input', e=>{
+  const i = +e.target.dataset.band;
+  if(bandFilters[i]) bandFilters[i].frequency.value = +e.target.value;
+  // update footer label
+  document.querySelector('#band'+i+' .band-footer div').textContent = Math.round(+e.target.value) + ' Hz';
+}));
+gainInputs.forEach(inp => inp.addEventListener('input', e=>{
+  const i = +e.target.dataset.band;
+  if(bandFilters[i]) bandFilters[i].gain.value = +e.target.value;
+  // update footer gain label (right side)
+  const footer = document.querySelectorAll('.band-footer')[i];
+  if(footer) footer.children[1].textContent = (+e.target.value).toFixed(1) + ' dB';
+}));
 
-function renderLEDs() {
-  if (!analyser) return requestAnimationFrame(renderLEDs);
-  analyser.getByteFrequencyData(dataArray);
-
-  const bass = avg(dataArray.slice(0, 15));
-  const low = avg(dataArray.slice(15, 40));
-  const mid = avg(dataArray.slice(40, 80));
-  const treble = avg(dataArray.slice(80, 160));
-  const vol = avg(dataArray);
-
-  const bands = { vol, bass, low, mid, treble };
-
-  for (let key in bands) {
-    const val = map(bands[key], 0, 255, 0, 100);
-    smooth[key] += (val - smooth[key]) * (val > smooth[key] ? 0.5 : 0.08);
-    leds[key].style.height = `${smooth[key]}%`;
+// renderer: update block LEDs (global + each band)
+function setBlocks(container, level){ // level 0..1
+  const blocks = Array.from(container.children);
+  const n = blocks.length;
+  const onCount = Math.round(level * n);
+  for(let i=0;i<n;i++){
+    const b = blocks[i];
+    b.className = 'block';
+    if(i < onCount){
+      // color by position (last third red, middle yellow)
+      const pct = (i / n) * 100;
+      if(pct > 66) b.classList.add('on','red');
+      else if(pct > 33) b.classList.add('on','yellow');
+      else b.classList.add('on','green');
+    }
   }
-
-  requestAnimationFrame(renderLEDs);
 }
 
-function avg(arr) {
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-function map(v, a, b, c, d) {
-  return ((v - a) / (b - a)) * (d - c) + c;
+// animation loop: analyse global & per-band
+(function animate(){
+  requestAnimationFrame(animate);
+  if(!analyser || !dataArray) return;
+
+  analyser.getByteFrequencyData(dataArray);
+  // global: average
+  let sum=0; for(let i=0;i<dataArray.length;i++) sum+=dataArray[i];
+  const gavg = (sum/dataArray.length)/255;
+  setBlocks(globalVolMeter, gavg);
+
+  // per-band using bandAnalyzers
+  if(bandAnalyzers && bandAnalyzers.length===4){
+    for(let i=0;i<4;i++){
+      const a = bandAnalyzers[i];
+      const buf = new Uint8Array(a.frequencyBinCount);
+      a.getByteFrequencyData(buf);
+      let s=0; for(let j=0;j<buf.length;j++) s+=buf[j];
+      const avgv = (s / buf.length) / 255;
+      setBlocks(document.getElementById('meter'+i), avgv);
+    }
+  }
+})();
+/* === LED MUSIC ANALYZER (5 BAND) === */
+const ledIDs = ["globalVol", "ledBass", "ledLow", "ledMid", "ledHigh"];
+const ledRanges = [
+  [0, 255],   // Global
+  [0, 15],    // Bass
+  [15, 40],   // Low
+  [40, 90],   // Mid
+  [90, 200]   // High
+];
+const ledMeters = {};
+const ledBlockCount = 12;
+
+// === Create block LED ===
+function createLedBlocks(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = "";
+  for (let i = 0; i < ledBlockCount; i++) {
+    const block = document.createElement("div");
+    block.className = "block";
+    el.appendChild(block);
+  }
+  ledMeters[id] = el.children;
 }
 
-renderLEDs();
+// === Initialize LEDs ===
+function initLedMeters() {
+  ledIDs.forEach(id => createLedBlocks(id));
+}
+
+// === Update LEDs per frame ===
+function updateLedMeters(freqData) {
+  if (!freqData) return;
+
+  // Get frequency segments
+  for (let i = 0; i < ledIDs.length; i++) {
+    const [start, end] = ledRanges[i];
+    const slice = freqData.slice(start, end);
+    const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
+    const norm = Math.pow(avg / 255, 0.8); // more sensitive
+    const level = Math.min(1, norm * 1.4); // boost a bit
+    const blocks = ledMeters[ledIDs[i]];
+    if (!blocks) continue;
+
+    const activeCount = Math.round(level * ledBlockCount);
+    for (let j = 0; j < ledBlockCount; j++) {
+      const b = blocks[j];
+      b.className = "block";
+      if (j < activeCount) {
+        if (j > 7) b.classList.add("on", "red");
+        else if (j > 3) b.classList.add("on", "yellow");
+        else b.classList.add("on", "green");
+      }
+    }
+  }
+}
+
+// === Add extra LED columns beside Global ===
+function addExtraLedColumns() {
+  const global = document.getElementById("globalVol");
+  if (!global) return;
+
+  const parent = global.parentElement.parentElement;
+  ["BASS", "LOW", "MID", "HIGH"].forEach((label, i) => {
+    const col = document.createElement("div");
+    col.className = "led-col";
+    const meter = document.createElement("div");
+    meter.className = "blockMeter";
+    meter.id = "led" + label.charAt(0) + label.slice(1).toLowerCase();
+    col.appendChild(meter);
+
+    const txt = document.createElement("div");
+    txt.style.fontSize = "11px";
+    txt.style.color = "var(--muted)";
+    txt.style.textAlign = "center";
+    txt.style.marginTop = "6px";
+    txt.textContent = label;
+    col.appendChild(txt);
+
+    parent.appendChild(col);
+  });
+}
+
+// === Init when page loads ===
+window.addEventListener("DOMContentLoaded", () => {
+  addExtraLedColumns();
+  initLedMeters();
+});
+
+// === Animation loop ===
+function renderLedBands() {
+  requestAnimationFrame(renderLedBands);
+  if (!analyser || !dataArray) return;
+  analyser.getByteFrequencyData(dataArray);
+  updateLedMeters(dataArray);
+}
+renderLedBands();
 </script>
 </body>
 </html>
