@@ -1,0 +1,788 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EQ DLMS Rack — Final (LED B: kotak-kotak)</title>
+<style>
+:root{
+  --bg:#041017; --panel:#071824; --muted:#9fb0c4; --accent:#0bb;
+  --led-off:#0f2228; --led-green:#4dff88; --led-yellow:#ffd24d; --led-red:#ff4d4d;
+  --font:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+  --square:10px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);font-family:var(--font);color:#e8f6ff}
+.wrap{max-width:1100px;margin:8px auto;padding:12px}
+.rack{background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+.title{font-weight:600;margin-bottom:8px;color:var(--muted)}
+.topRow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.controls{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.faders{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.fcol{display:flex;flex-direction:column;align-items:center}
+input[type=range]{-webkit-appearance:none;background:transparent}
+input[type=range].vert{height:120px;width:24px;writing-mode:bt-lr;-webkit-appearance:slider-vertical}
+.small{font-size:12px;color:var(--muted);margin-top:6px}
+.btn{padding:8px 10px;border-radius:8px;background:#0a2b2e;color:#fff;border:1px solid #073;cursor:pointer}
+.row-h{display:flex;align-items:center;gap:8px}
+.band{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));border:1px solid rgba(255,255,255,0.03);padding:10px;border-radius:8px;min-width:210px;flex:1}
+.band h4{margin:0 0 6px 0;font-size:13px;color:#cfeef8}
+.band .row{display:flex;align-items:center;gap:8px}
+.band-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+.fourband{display:flex;gap:12px;align-items:flex-start;margin-top:16px;flex-wrap:wrap}
+
+/* LED squares (horizontal rows) */
+.ledGroup{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.ledLabel{font-size:11px;color:var(--muted)}
+.ledRow{display:flex;gap:4px;align-items:center}
+/* LED square refined look */
+.ledSquare {
+  width: var(--square);
+  height: var(--square);
+  background: var(--led-off);
+  border-radius: 3px;
+  box-shadow: inset 0 -1px 2px rgba(0,0,0,.6), 0 0 4px rgba(0,255,255,0.05);
+  transition: background 0.15s ease, box-shadow 0.2s ease;
+}
+
+/* Elegan: warna LED dengan efek glow lembut */
+.ledSquare.green {
+  background: linear-gradient(180deg, #4dff88 0%, #0fa 100%);
+  box-shadow: 0 0 6px rgba(0,255,128,0.4);
+}
+.ledSquare.yellow {
+  background: linear-gradient(180deg, #ffd24d 0%, #ffb300 100%);
+  box-shadow: 0 0 6px rgba(255,210,77,0.35);
+}
+.ledSquare.red {
+  background: linear-gradient(180deg, #ff4d4d 0%, #c00 100%);
+  box-shadow: 0 0 6px rgba(255,77,77,0.4);
+}
+
+/* Tambahan efek hover (biar lebih responsif di web) */
+.ledRow:hover .ledSquare {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* responsive */
+@media (max-width:720px){
+  .faders{gap:8px}
+  .band{min-width:100%}
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="rack">
+      <div class="title">EQ DLMS Rack — Final (kotak-kotak LED)</div>
+
+      <!-- upload + play -->
+      <div class="topRow">
+        <div style="flex:1;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="audioFile" type="file" accept="audio/*" multiple>
+            <button id="play" class="btn">Play</button>
+            <button id="pause" class="btn">Pause</button>
+            <div id="fileName" style="margin-left:8px;color:var(--muted);font-size:13px">No file</div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+  <div style="font-size:13px;color:var(--muted);">Playlist</div>
+  <button id="togglePlaylistBtn" class="btn" style="padding:4px 8px;font-size:12px;background:#044;border:1px solid #077;">Hide</button>
+</div>
+<div id="playlist" style="margin-top:6px;font-size:13px;color:var(--muted);max-height:120px;overflow-y:auto;transition:all 0.3s ease;"></div>
+          <!-- ANALYZER DISPLAY -->
+<div style="margin-top:14px;width:100%;background:#021017;border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:6px;">
+  <canvas id="spectrumCanvas" width="900" height="120" style="width:100%;height:120px;display:block;border-radius:6px;"></canvas>
+</div>
+
+          <!-- main faders row -->
+          <div style="margin-top:10px" class="controls">
+            <div class="faders" id="mainFaders">
+              <div class="fcol"><input id="volFader" class="vert" type="range" min="0" max="1" step="0.01" value="1"><div class="small">VOL</div></div>
+              <div class="fcol"><input id="bassFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">BASS</div></div>
+              <div class="fcol"><input id="lowFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">LOW</div></div>
+              <div class="fcol"><input id="midFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">MID</div></div>
+              <div class="fcol"><input id="trebleFader" class="vert" type="range" min="-30" max="30" step="1" value="0"><div class="small">TREBLE</div></div>
+
+              <div style="margin-left:20px;display:flex;flex-direction:column;gap:10px;align-items:center"></div>
+
+              <div class="fcol"><input id="panFader" class="vert" type="range" min="-1" max="1" step="0.01" value="0"><div class="small">PAN</div></div>
+              <div class="fcol"><input id="revFader" class="vert" type="range" min="0" max="1" step="0.01" value="0.3"><div class="small">REV</div></div>
+            </div>
+
+            <!-- LED groups (GLOBAL + BANDS) -->
+            <div style="margin-left:18px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+              <div class="ledGroup">
+                <div class="ledLabel">GLOBAL</div>
+                <div class="ledRow" id="ledGlobal"></div>
+              </div>
+              <div class="ledGroup">
+                <div class="ledLabel">BASS</div>
+                <div class="ledRow" id="ledBass"></div>
+              </div>
+              <div class="ledGroup">
+                <div class="ledLabel">LOW</div>
+                <div class="ledRow" id="ledLow"></div>
+              </div>
+              <div class="ledGroup">
+                <div class="ledLabel">MID</div>
+                <div class="ledRow" id="ledMid"></div>
+              </div>
+              <div class="ledGroup">
+                <div class="ledLabel">HIGH</div>
+                <div class="ledRow" id="ledHigh"></div>
+              </div>
+            </div>
+
+            <!-- COMPRESSOR UI -->
+            <div style="margin-left:20px;display:flex;flex-direction:column;align-items:center;">
+              <div style="font-size:13px;color:#7fe7d4;margin-bottom:6px;">COMPRESSOR</div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <div class="fcol"><input id="compThreshold" class="vert" type="range" min="-60" max="0" step="1" value="-24"><div class="small">THR</div></div>
+                <div class="fcol"><input id="compRatio" class="vert" type="range" min="1" max="20" step="0.5" value="4"><div class="small">RAT</div></div>
+                <div class="fcol"><input id="compAttack" class="vert" type="range" min="0.001" max="0.2" step="0.001" value="0.01"><div class="small">ATK</div></div>
+                <div class="fcol"><input id="compRelease" class="vert" type="range" min="0.05" max="1" step="0.01" value="0.25"><div class="small">REL</div></div>
+                <div class="fcol"><input id="compMakeup" class="vert" type="range" min="-6" max="12" step="0.1" value="0"><div class="small">MAKE (dB)</div></div>
+              </div>
+              <div style="margin-top:8px;text-align:center;width:140px">
+                <div style="font-size:11px;color:var(--muted)">Gain Reduction</div>
+                <div class="ledRow" id="ledComp" style="margin-top:6px"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-band rack horizontal -->
+      <div class="fourband" id="fourband" style="margin-top:18px;">
+        <div class="band" id="band0">
+          <h4>Band 1 <span style="color:#7fe7d4">SUB</span></h4>
+          <div class="row">
+            <div style="width:80px;color:var(--muted);font-size:12px">Freq (Hz)</div>
+            <input class="freq" data-band="0" type="range" min="20" max="200" value="60">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div style="width:80px;color:var(--muted);font-size:12px">Gain (dB)</div>
+            <input class="gain" data-band="0" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div style="margin-top:8px">
+            <div class="ledLabel">Band Meter</div>
+            <div class="ledRow" id="bandMeter0" style="margin-top:6px"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">60 Hz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band1">
+          <h4>Band 2 <span style="color:#7fe7d4">LOW</span></h4>
+          <div class="row">
+            <div style="width:80px;color:var(--muted);font-size:12px">Freq (Hz)</div>
+            <input class="freq" data-band="1" type="range" min="100" max="600" value="250">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div style="width:80px;color:var(--muted);font-size:12px">Gain (dB)</div>
+            <input class="gain" data-band="1" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div style="margin-top:8px">
+            <div class="ledLabel">Band Meter</div>
+            <div class="ledRow" id="bandMeter1" style="margin-top:6px"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">250 Hz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band2">
+          <h4>Band 3 <span style="color:#7fe7d4">MID</span></h4>
+          <div class="row">
+            <div style="width:80px;color:var(--muted);font-size:12px">Freq (Hz)</div>
+            <input class="freq" data-band="2" type="range" min="400" max="3000" value="1000">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div style="width:80px;color:var(--muted);font-size:12px">Gain (dB)</div>
+            <input class="gain" data-band="2" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div style="margin-top:8px">
+            <div class="ledLabel">Band Meter</div>
+            <div class="ledRow" id="bandMeter2" style="margin-top:6px"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">1 kHz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+
+        <div class="band" id="band3">
+          <h4>Band 4 <span style="color:#7fe7d4">HIGH</span></h4>
+          <div class="row">
+            <div style="width:80px;color:var(--muted);font-size:12px">Freq (Hz)</div>
+            <input class="freq" data-band="3" type="range" min="2000" max="12000" value="8000">
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div style="width:80px;color:var(--muted);font-size:12px">Gain (dB)</div>
+            <input class="gain" data-band="3" type="range" min="-15" max="15" step="0.5" value="0">
+          </div>
+          <div style="margin-top:8px">
+            <div class="ledLabel">Band Meter</div>
+            <div class="ledRow" id="bandMeter3" style="margin-top:6px"></div>
+          </div>
+          <div class="band-footer"><div style="color:var(--muted)">8 kHz</div><div style="color:var(--muted)">0 dB</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Polyfill
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+// UI refs
+const fileIn = document.getElementById('audioFile');
+const playBtn = document.getElementById('play');
+const pauseBtn = document.getElementById('pause');
+const fileNameEl = document.getElementById('fileName');
+
+const volFader = document.getElementById('volFader');
+const bassFader = document.getElementById('bassFader');
+const lowFader = document.getElementById('lowFader');
+const midFader = document.getElementById('midFader');
+const trebleFader = document.getElementById('trebleFader');
+const panFader = document.getElementById('panFader');
+const revFader = document.getElementById('revFader');
+
+const compThreshold = document.getElementById('compThreshold');
+const compRatio = document.getElementById('compRatio');
+const compAttack = document.getElementById('compAttack');
+const compRelease = document.getElementById('compRelease');
+const compMakeup = document.getElementById('compMakeup');
+
+const ledGlobal = document.getElementById('ledGlobal');
+const ledBass = document.getElementById('ledBass');
+const ledLow = document.getElementById('ledLow');
+const ledMid = document.getElementById('ledMid');
+const ledHigh = document.getElementById('ledHigh');
+const ledComp = document.getElementById('ledComp');
+
+const bandMeters = [
+  document.getElementById('bandMeter0'),
+  document.getElementById('bandMeter1'),
+  document.getElementById('bandMeter2'),
+  document.getElementById('bandMeter3')
+];
+
+let audio = null;
+let audioCtx = null;
+let sourceNode = null;
+
+let preOut;
+let bassEQ, lowEQ, midEQ, trebleEQ;
+let masterMix;
+let bandFilters = [], bandAnalyzers = [];
+let panner, convolver, dryGain, wetGain, finalGain, analyser, analyserData;
+let compressor, compMakeupGain;
+
+let fileSelected = false;
+let nodesInitialized = false;
+
+// LED square count
+const LED_COUNT = 16;
+function mkRow(el, count = LED_COUNT){
+  el.innerHTML = '';
+  for(let i=0;i<count;i++){
+    const s = document.createElement('div');
+    s.className = 'ledSquare';
+    el.appendChild(s);
+  }
+}
+// create LED rows
+mkRow(ledGlobal);
+mkRow(ledBass);
+mkRow(ledLow);
+mkRow(ledMid);
+mkRow(ledHigh);
+mkRow(ledComp, 12);
+bandMeters.forEach(m=> mkRow(m, 12));
+
+// helper convert dB to linear
+function dbToLinear(db){ return Math.pow(10, db/20); }
+
+// helper create impulse
+function createImpulse(ctx, duration=2, decay=2){
+  const sr = ctx.sampleRate;
+  const len = Math.floor(sr * duration);
+  const buf = ctx.createBuffer(2, len, sr);
+  for(let c=0;c<2;c++){
+    const ch = buf.getChannelData(c);
+    for(let i=0;i<len;i++){
+      ch[i] = (Math.random()*2-1) * Math.pow(1 - i/len, decay);
+    }
+  }
+  return buf;
+}
+
+// build band filters + analyzers (called once when audioCtx exists)
+function buildBandNodes(){
+  bandFilters = []; bandAnalyzers = [];
+  const defaults = [60,250,1000,8000];
+  for(let i=0;i<4;i++){
+    const f = audioCtx.createBiquadFilter();
+    f.type = 'peaking';
+    f.frequency.value = defaults[i];
+    f.Q.value = 1.0;
+    f.gain.value = 0;
+    const a = audioCtx.createAnalyser();
+    a.fftSize = 128;
+    f.connect(a);
+    a.connect(masterMix); // each band's analyser out sums to masterMix
+    bandFilters.push(f);
+    bandAnalyzers.push(a);
+  }
+}
+
+// connect preOut to band filters
+function connectToBandFilters(pre){
+  bandFilters.forEach(f=>{
+    try{ pre.connect(f); }catch(e){}
+  });
+}
+
+// initialize audio nodes (called when Play clicked first time)
+function initNodesAndRouting(){
+  if(nodesInitialized) return;
+  // create audio context
+  if(!audioCtx) audioCtx = new AudioContext();
+
+  // source
+  sourceNode = audioCtx.createMediaElementSource(audio);
+
+  // pre chain
+  preOut = audioCtx.createGain();
+
+  bassEQ = audioCtx.createBiquadFilter(); bassEQ.type='lowshelf'; bassEQ.frequency.value=100; bassEQ.gain.value=0;
+  lowEQ  = audioCtx.createBiquadFilter(); lowEQ.type='peaking'; lowEQ.frequency.value=300; lowEQ.Q.value=1; lowEQ.gain=0;
+  midEQ  = audioCtx.createBiquadFilter(); midEQ.type='peaking'; midEQ.frequency.value=1000; midEQ.Q.value=1; midEQ.gain=0;
+  trebleEQ = audioCtx.createBiquadFilter(); trebleEQ.type='highshelf'; trebleEQ.frequency.value=4000; trebleEQ.gain=0;
+
+  // master & FX nodes
+  masterMix = audioCtx.createGain(); masterMix.gain.value = 1;
+  panner = audioCtx.createStereoPanner();
+  convolver = audioCtx.createConvolver(); convolver.buffer = createImpulse(audioCtx,1.8,2.0);
+  dryGain = audioCtx.createGain(); wetGain = audioCtx.createGain();
+  finalGain = audioCtx.createGain();
+  analyser = audioCtx.createAnalyser(); analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.25;
+  analyserData = new Uint8Array(analyser.frequencyBinCount);
+
+  // compressor + makeup
+  compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = parseFloat(compThreshold.value);
+  compressor.knee.value = 30;
+  compressor.ratio.value = parseFloat(compRatio.value);
+  compressor.attack.value = parseFloat(compAttack.value);
+  compressor.release.value = parseFloat(compRelease.value);
+
+  compMakeupGain = audioCtx.createGain();
+  compMakeupGain.gain.value = dbToLinear(parseFloat(compMakeup.value));
+
+  // build band filters/analyzers
+  buildBandNodes();
+
+  // connect source EQ chain -> preOut
+  sourceNode.connect(bassEQ);
+  bassEQ.connect(lowEQ);
+  lowEQ.connect(midEQ);
+  midEQ.connect(trebleEQ);
+  trebleEQ.connect(preOut);
+
+  // connect preOut -> bandFilters (they already connect to masterMix via their analyzers)
+  connectToBandFilters(preOut);
+
+  // also mix preOut to masterMix (so full signal is passed through compressor chain)
+  preOut.connect(masterMix);
+
+  // routing: masterMix -> compressor -> makeup -> panner -> dry & convolver -> analyser -> finalGain -> destination
+  masterMix.connect(compressor);
+  compressor.connect(compMakeupGain);
+  compMakeupGain.connect(panner);
+
+  panner.connect(dryGain);
+  panner.connect(convolver);
+  convolver.connect(wetGain);
+
+  // merge dry+wet into analyser then final
+  dryGain.connect(analyser);
+  wetGain.connect(analyser);
+  analyser.connect(finalGain);
+  finalGain.connect(audioCtx.destination);
+
+  // defaults
+  wetGain.gain.value = parseFloat(revFader.value) || 0.3;
+  dryGain.gain.value = 1 - wetGain.gain.value;
+  finalGain.gain.value = parseFloat(volFader.value) || 1;
+
+  nodesInitialized = true;
+}
+
+// update compressor params from UI
+function updateCompressorFromUI(){
+  if(!compressor) return;
+  compressor.threshold.value = parseFloat(compThreshold.value);
+  compressor.ratio.value = parseFloat(compRatio.value);
+  compressor.attack.value = parseFloat(compAttack.value);
+  compressor.release.value = parseFloat(compRelease.value);
+  if(compMakeupGain) compMakeupGain.gain.value = dbToLinear(parseFloat(compMakeup.value));
+}
+
+// safe play handler (ensures audioCtx & nodes exist, resumes context on mobile)
+playBtn.addEventListener('click', async ()=>{
+  if(!fileSelected) return alert('Pilih file audio dulu');
+  if(!audioCtx) audioCtx = new AudioContext();
+  // init nodes only after audioCtx exists
+  if(!nodesInitialized) initNodesAndRouting();
+  updateCompressorFromUI();
+  try{ await audioCtx.resume(); }catch(e){}
+  audio.play();
+  fileNameEl.textContent = audio._fileName || fileIn.files[0]?.name || 'Playing';
+});
+
+// pause
+pauseBtn.addEventListener('click', ()=>{ if(audio) audio.pause(); });
+
+// on file select: create audio element but don't init audioCtx until Play clicked
+fileIn.addEventListener('change', (ev)=>{
+  const f = ev.target.files[0];
+  if(!f) return;
+  fileSelected = true;
+  if(audio){ try{ audio.pause(); }catch(e){} }
+  audio = new Audio();
+  audio.src = URL.createObjectURL(f);
+  audio.loop = true;
+  audio.crossOrigin = 'anonymous';
+  audio._fileName = f.name;
+  fileNameEl.textContent = f.name;
+  // reset nodes if previously created (to allow switching files)
+  // We'll keep audioCtx (if exists) but re-init nodes to reconnect to new source
+  nodesInitialized = false;
+  sourceNode = null;
+  // rebuild band LED rows (clear)
+  mkRow(ledGlobal);
+  mkRow(ledBass);
+  mkRow(ledLow);
+  mkRow(ledMid);
+  mkRow(ledHigh);
+  mkRow(ledComp, 12);
+  bandMeters.forEach(m=> mkRow(m, 12));
+});
+// === PLAYLIST HANDLER ===
+const playlistEl = document.getElementById('playlist');
+let playlist = [];
+let currentTrack = 0;
+
+// Render daftar lagu
+function renderPlaylist() {
+  playlistEl.innerHTML = '';
+  playlist.forEach((song, i) => {
+    const item = document.createElement('div');
+    item.textContent = song.name;
+    item.style.padding = '4px 8px';
+    item.style.cursor = 'pointer';
+    item.style.borderRadius = '4px';
+    item.style.marginBottom = '3px';
+    item.style.background = (i === currentTrack) ? 'rgba(0,255,180,0.1)' : 'transparent';
+    item.onclick = () => playTrack(i);
+    playlistEl.appendChild(item);
+  });
+}
+
+// Ganti lagu
+function playTrack(index) {
+  if (index < 0 || index >= playlist.length) return;
+  currentTrack = index;
+  const song = playlist[index];
+  fileSelected = true;
+  if (audio) { try { audio.pause(); } catch (e) {} }
+  audio = new Audio(song.url);
+  audio.loop = false;
+  audio.crossOrigin = 'anonymous';
+  audio._fileName = song.name;
+  fileNameEl.textContent = song.name;
+  nodesInitialized = false;
+  sourceNode = null;
+  mkRow(ledGlobal);
+  mkRow(ledBass);
+  mkRow(ledLow);
+  mkRow(ledMid);
+  mkRow(ledHigh);
+  mkRow(ledComp, 12);
+  bandMeters.forEach(m => mkRow(m, 12));
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  initNodesAndRouting();
+  audio.play();
+  renderPlaylist();
+}
+
+// Saat upload file
+fileIn.addEventListener('change', (ev) => {
+  const files = Array.from(ev.target.files);
+  if (!files.length) return;
+  playlist = files.map(f => ({
+    name: f.name,
+    url: URL.createObjectURL(f)
+  }));
+  currentTrack = 0;
+  renderPlaylist();
+  playTrack(0);
+});
+
+// Auto lanjut ke lagu berikutnya
+if (audio) {
+  audio.addEventListener('ended', () => {
+    if (currentTrack < playlist.length - 1) {
+      playTrack(currentTrack + 1);
+    }
+  });
+}
+// === HIDE PLAYLIST ONLY ===
+const togglePlaylistBtn = document.getElementById('togglePlaylistBtn');
+const playlistContainer = document.getElementById('playlist');
+let playlistHidden = false;
+
+togglePlaylistBtn.addEventListener('click', () => {
+  playlistHidden = !playlistHidden;
+  playlistContainer.style.maxHeight = playlistHidden ? '0px' : '120px';
+  playlistContainer.style.opacity = playlistHidden ? '0' : '1';
+  playlistContainer.style.overflow = playlistHidden ? 'hidden' : 'auto';
+  togglePlaylistBtn.textContent = playlistHidden ? 'Show' : 'Hide';
+});
+// faders & controls listeners (update nodes if ready)
+volFader.addEventListener('input', ()=>{ if(finalGain) finalGain.gain.value = parseFloat(volFader.value); });
+bassFader.addEventListener('input', ()=>{ if(bassEQ) bassEQ.gain.value = parseFloat(bassFader.value); });
+lowFader.addEventListener('input', ()=>{ if(lowEQ) lowEQ.gain.value = parseFloat(lowFader.value); });
+midFader.addEventListener('input', ()=>{ if(midEQ) midEQ.gain.value = parseFloat(midFader.value); });
+trebleFader.addEventListener('input', ()=>{ if(trebleEQ) trebleEQ.gain.value = parseFloat(trebleFader.value); });
+panFader.addEventListener('input', ()=>{ if(panner) panner.pan.value = parseFloat(panFader.value); });
+revFader.addEventListener('input', ()=>{ if(wetGain && dryGain){ wetGain.gain.value = parseFloat(revFader.value); dryGain.gain.value = 1 - wetGain.gain.value; } });
+
+compThreshold.addEventListener('input', ()=>{ if(compressor) compressor.threshold.value = parseFloat(compThreshold.value); });
+compRatio.addEventListener('input', ()=>{ if(compressor) compressor.ratio.value = parseFloat(compRatio.value); });
+compAttack.addEventListener('input', ()=>{ if(compressor) compressor.attack.value = parseFloat(compAttack.value); });
+compRelease.addEventListener('input', ()=>{ if(compressor) compressor.release.value = parseFloat(compRelease.value); });
+compMakeup.addEventListener('input', ()=>{ if(compMakeupGain) compMakeupGain.gain.value = dbToLinear(parseFloat(compMakeup.value)); });
+
+// freq/gain inputs for bands
+document.querySelectorAll('.freq').forEach(inp=>{
+  inp.addEventListener('input', (e)=>{
+    const i = +e.target.dataset.band;
+    if(bandFilters[i]) bandFilters[i].frequency.value = +e.target.value;
+    // update label in footer
+    const foot = document.querySelectorAll('.band-footer')[i];
+    if(foot) foot.children[0].textContent = Math.round(+e.target.value) + ' Hz';
+  });
+});
+document.querySelectorAll('.gain').forEach(inp=>{
+  inp.addEventListener('input', (e)=>{
+    const i = +e.target.dataset.band;
+    if(bandFilters[i]) bandFilters[i].gain.value = +e.target.value;
+    const foot = document.querySelectorAll('.band-footer')[i];
+    if(foot) foot.children[1].textContent = (+e.target.value).toFixed(1) + ' dB';
+  });
+});
+
+// LED update helpers
+function setRowLevel(rowEl, level){
+  // level: 0..1 -> light squares from left to right
+  const squares = Array.from(rowEl.children);
+  const n = squares.length;
+  const active = Math.round(level * n);
+  for(let i=0;i<n;i++){
+    const s = squares[i];
+    s.className = 'ledSquare';
+    if(i < active){
+      // color by position (left green -> yellow -> red)
+      const pct = i / Math.max(1, n-1);
+      if(pct > 0.75) s.classList.add('red');
+      else if(pct > 0.4) s.classList.add('yellow');
+      else s.classList.add('green');
+    }
+  }
+}
+
+// animation loop: read analysers and update LED rows
+function render(){
+  requestAnimationFrame(render);
+  if(!analyser || !analyserData) return;
+
+  // global based on analyser
+  analyser.getByteFrequencyData(analyserData);
+  // compute RMS-like average
+  let sum=0;
+  for(let i=0;i<analyserData.length;i++) sum += analyserData[i];
+  const gav = (sum / analyserData.length) / 255;
+  setRowLevel(ledGlobal, gav);
+
+  // band meters using bandAnalyzers
+  if(bandAnalyzers && bandAnalyzers.length === 4){
+    for(let i=0;i<4;i++){
+      const a = bandAnalyzers[i];
+      const buf = new Uint8Array(a.frequencyBinCount);
+      a.getByteFrequencyData(buf);
+      let s=0; for(let j=0;j<buf.length;j++) s+=buf[j];
+      const v = (s / buf.length) / 255;
+      setRowLevel(bandMeters[i], v);
+    }
+  }
+
+  // derive smaller freq slices for bass/low/mid/high for LED columns (from global analyserData)
+  if(analyserData && analyserData.length){
+    const len = analyserData.length;
+    const getSliceAvg = (s,e)=>{
+      s = Math.max(0, Math.min(len-1, s));
+      e = Math.max(0, Math.min(len, e));
+      if(e<=s) return 0;
+      let ss = 0;
+      for(let i=s;i<e;i++) ss += analyserData[i];
+      return (ss / (e-s)) / 255;
+    };
+    setRowLevel(ledBass, getSliceAvg(0, Math.floor(len*0.08)));
+    setRowLevel(ledLow, getSliceAvg(Math.floor(len*0.08), Math.floor(len*0.2)));
+    setRowLevel(ledMid, getSliceAvg(Math.floor(len*0.2), Math.floor(len*0.55)));
+    setRowLevel(ledHigh, getSliceAvg(Math.floor(len*0.55), Math.floor(len*0.95)));
+  }
+
+  // compressor reduction meter (use compressor.reduction)
+  if(compressor){
+    const redDb = Math.abs(compressor.reduction || 0); // 0..inf (dB)
+    const maxDb = 30;
+    const lev = Math.min(1, redDb / maxDb);
+    setRowLevel(ledComp, lev);
+  }
+}
+render();
+// === SPECTRUM ANALYZER VISUAL DISPLAY ===
+const spectrumCanvas = document.getElementById('spectrumCanvas');
+const ctx = spectrumCanvas.getContext('2d');
+
+function drawSpectrum() {
+  if (!analyser || !analyserData) return;
+
+  const { width, height } = spectrumCanvas;
+  ctx.clearRect(0, 0, width, height);
+
+  // Ambil data spektrum
+  analyser.getByteFrequencyData(analyserData);
+
+  // Jumlah bar lebih banyak biar halus
+  const barCount = 96;
+  const barWidth = width / barCount;
+
+  // Respons lebih cepat dan smooth (smoothing manual)
+  if (!drawSpectrum.lastVals) drawSpectrum.lastVals = new Array(barCount).fill(0);
+  const smoothFactor = 0.4; // 0.2 = lambat, 0.6 = lebih cepat respon
+
+  for (let i = 0; i < barCount; i++) {
+    const index = Math.floor(i * (analyserData.length / barCount));
+    const value = analyserData[index] / 255;
+    const smoothed = drawSpectrum.lastVals[i] + (value - drawSpectrum.lastVals[i]) * smoothFactor;
+    drawSpectrum.lastVals[i] = smoothed;
+
+    const barHeight = smoothed * height * 0.95;
+    const x = i * barWidth;
+    const y = height - barHeight;
+
+    // Warna gradasi elegan biru–cyan
+    const grad = ctx.createLinearGradient(x, y, x, height);
+    grad.addColorStop(0, 'rgba(0,255,200,0.95)');
+    grad.addColorStop(0.6, 'rgba(0,180,255,0.7)');
+    grad.addColorStop(1, 'rgba(0,100,180,0.35)');
+    ctx.fillStyle = grad;
+
+    // Rounded bar + glow halus
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y, barWidth - 2, barHeight, 3);
+    ctx.fill();
+  }
+
+  // Tambahan glow bawah biar realistis
+  const bottomGlow = ctx.createLinearGradient(0, height - 10, 0, height);
+  bottomGlow.addColorStop(0, 'rgba(0,255,200,0.08)');
+  bottomGlow.addColorStop(1, 'rgba(0,255,200,0)');
+  ctx.fillStyle = bottomGlow;
+  ctx.fillRect(0, height - 10, width, 10);
+}
+
+// tambahkan ke loop render utama
+const oldRender = render;
+function renderWrapper() {
+  requestAnimationFrame(renderWrapper);
+  oldRender();
+  drawSpectrum();
+}
+renderWrapper();
+// === MEDIA SESSION API UNTUK NOTIFIKASI PEMUTAR MUSIK ===
+if ('mediaSession' in navigator) {
+  // Set metadata dasar
+  function updateMediaSessionMetadata() {
+    const title = audio?._fileName || 'EQ DLMS Player';
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: title,
+      artist: 'Artis tidak diketahui',
+      album: 'EQ DLMS Rack',
+      artwork: [
+        { src: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f39b.svg', sizes: '512x512', type: 'image/png' }
+      ]
+    });
+  }
+
+  // Saat tombol play ditekan
+  playBtn.addEventListener('click', () => {
+    if (audio) {
+      updateMediaSessionMetadata();
+      navigator.mediaSession.playbackState = 'playing';
+    }
+  });
+
+  // Saat tombol pause ditekan
+  pauseBtn.addEventListener('click', () => {
+    if (audio) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
+  });
+
+  // Aksi kontrol di notifikasi (play/pause/stop/next/prev)
+  navigator.mediaSession.setActionHandler('play', () => {
+    if (audio) audio.play();
+    navigator.mediaSession.playbackState = 'playing';
+  });
+  navigator.mediaSession.setActionHandler('pause', () => {
+    if (audio) audio.pause();
+    navigator.mediaSession.playbackState = 'paused';
+  });
+  navigator.mediaSession.setActionHandler('stop', () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      navigator.mediaSession.playbackState = 'none';
+    }
+  });
+}
+// LED update helpers (dengan smoothing lembut)
+function setRowLevel(rowEl, level){
+  if(!rowEl._lastLevel) rowEl._lastLevel = 0;
+  // smoothing biar responsif tapi gak nyentak
+  const smooth = 0.25; // makin besar = makin lembut
+  rowEl._lastLevel = rowEl._lastLevel + (level - rowEl._lastLevel) * smooth;
+  const smoothedLevel = rowEl._lastLevel;
+
+  const squares = Array.from(rowEl.children);
+  const n = squares.length;
+  const active = Math.round(smoothedLevel * n);
+
+  for(let i=0;i<n;i++){
+    const s = squares[i];
+    s.className = 'ledSquare';
+    if(i < active){
+      const pct = i / Math.max(1, n-1);
+      if(pct > 0.75) s.classList.add('red');
+      else if(pct > 0.4) s.classList.add('yellow');
+      else s.classList.add('green');
+    }
+  }
+}
+</script>
+</body>
+</html>
